@@ -2,9 +2,21 @@
 
 ## Description
 
-This project implements a Model Predictive Control (MPC) algorithm for adaptive bitrate selection in video streaming. The algorithm aims to optimize Quality of Experience (QoE) by predicting future network conditions and selecting the best bitrate for video segments over a lookahead horizon. It uses a depth-first search (DFS) to explore possible bitrate sequences and chooses the one that maximizes cumulative QoE.
+This project implements a Model Predictive Control (MPC) algorithm for adaptive bitrate (ABR) selection in video streaming. When a video is stored on a server, it is not transmitted entirely all at once. It is divided into many short pieces called **Segments** (e.g., 2 or 4 seconds long). Each segment is encoded and stored at multiple quality levels and resolutions. The task of this client-side ABR algorithm is to decide at which bitrate to download the *i*-th segment before the download begins.
 
-The implementation is written in C and simulates the bitrate adaptation process over multiple video segments with varying network bandwidth conditions.
+The algorithm aims to optimize the Quality of Experience (QoE) by predicting future network conditions and selecting the best bitrate sequence over a lookahead horizon using a depth-first search (DFS) approach.
+
+## Overall Architecture
+
+The ABR Video Streaming System utilizes a closed-loop data flow spanning from Server to Client. It consists of three main components:
+
+1. **Server-side (Video Preparation)**: When an original video is available, multimedia processing software (like FFmpeg) "chops" the video into small segments and encodes them into various resolutions/bitrates (e.g., 480p, 720p, 1080p).
+2. **Network Communication (Transmission Channel)**: Serves as a bridge between the Server and the Client. The Client uses the HTTP protocol (e.g., via network libraries like `libcurl` or `curl`) to continuously send requests to pull down each small video segment.
+3. **Client-side (Video Player)**: The "brain" of the application where the MPC algorithm operates:
+   - **Bandwidth Estimation**: Continuously measures the network speed to determine if it is fast or slow.
+   - **Buffer**: Stores downloaded segments that haven't been played yet. Its state (filling up or near depletion) is continuously monitored.
+   - **MPC Controller**: Takes the predicted bandwidth and current buffer state to calculate the optimal quality for the next segment.
+   - **Request**: Generates the HTTP request to fetch the specific segment and places it into the buffer.
 
 ## Features
 
@@ -15,22 +27,36 @@ The implementation is written in C and simulates the bitrate adaptation process 
 
 ## Algorithm Overview
 
-The MPC algorithm works as follows:
+### 1. Objective Function: Optimizing User Experience
 
-1. **QoE Calculation**: For each potential bitrate transition, compute the QoE using the formula:
-   ```
-   QoE = α × bitrate - β × |bitrate_change| - γ × rebuffer_time
-   ```
-   Where:
-   - `α` (ALPHA): Weight for video quality
-   - `β` (BETA): Penalty for bitrate changes
-   - `γ` (GAMMA): Penalty for rebuffering
+The algorithm seeks to maximize the Quality of Experience (QoE) defined by the following equation:
 
-2. **Lookahead Search**: Use DFS to explore all possible bitrate sequences over a fixed number of future segments (LOOKAHEAD_STEPS).
+`Q = α × ∑(bitrate) - β × ∑(smoothness) - γ × ∑(rebuffer)`
 
-3. **Decision Making**: Select the bitrate for the next segment that leads to the highest cumulative QoE in the lookahead window.
+- **Reward (Greedy)**: `α × ∑(bitrate)` - The higher the chosen quality, the more points the system achieves.
+- **Lag Penalty (Fear 1)**: `γ × ∑(rebuffer)` - Choosing high quality in weak networks depletes the buffer, causing video freeze (rebuffering). This is the heaviest penalty in the viewing experience.
+- **Fluctuation Penalty (Fear 2)**: `β × ∑(smoothness)` - Continuous bitrate changes between consecutive segments (`|S[i+1] - S[i]|`) cause visual discomfort, resulting in point deductions.
 
-4. **Buffer Management**: Update the playback buffer based on download times and segment duration.
+### 2. The Heart of the System: Buffer State (The Model)
+
+The "Model" in MPC represents how the system simulates changes in the Buffer over time. The buffer is updated after downloading a new segment using the following mathematical formula:
+
+`B_next = max(0, B_current - t_download) + t_segment`
+
+- `B_current`: Amount of video (in seconds) currently available but not yet played.
+- `t_download`: Actual time spent downloading the segment (`Segment Size / Network Bandwidth`). The player continuously "consumes" video during this time.
+- `t_segment`: Duration of the newly downloaded video segment (e.g., 4 seconds).
+*Note: If `t_download > B_current`, the buffer is exhausted and drops to 0, causing a freeze/rebuffer. The system does not allow a negative buffer.*
+
+### 3. The Flow of the MPC Algorithm (Step-by-Step)
+
+Unlike simple greedy algorithms, MPC calculates *K* steps ahead but only executes 1 step. Assuming a lookahead window of *K=5* future segments, the procedure unfolds as follows:
+
+1. **Bandwidth Estimation**: Evaluate download speed history to forecast the network bandwidth for the next 5 segments.
+2. **Scenario Generation**: Simulate all possible scenario branches that could occur in the next 5 steps.
+3. **Calculation and Future Simulation**: For each scenario, use the Buffer Model and Predicted Bandwidth to calculate depletion/fill states at each step. Apply the QoE function to score the entire scenario.
+4. **Decision Making (The Control)**: Compare the QoE scores of all branches and select the scenario that yields the highest *Q* value.
+5. **Execution and Receding Horizon**: Extract *only the first decision* of the winning scenario to send the HTTP Request. After downloading, update the actual state and repeat the entire 5-step prediction process from the beginning.
 
 ## Requirements
 
