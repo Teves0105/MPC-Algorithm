@@ -5,6 +5,7 @@
 This project implements a Model Predictive Control (MPC) algorithm for adaptive bitrate (ABR) selection in video streaming. When a video is stored on a server, it is not transmitted entirely all at once. It is divided into many short pieces called **Segments** (e.g., 2 or 4 seconds long). Each segment is encoded and stored at multiple quality levels and resolutions. The task of this client-side ABR algorithm is to decide at which bitrate to download the *i*-th segment before the download begins.
 
 The algorithm aims to optimize the Quality of Experience (QoE) by predicting future network conditions and selecting the best bitrate sequence over a lookahead horizon using a depth-first search (DFS) approach.
+![Overall Architecture Diagram](./architecture_diagram.png)
 
 ## Overall Architecture
 
@@ -28,6 +29,7 @@ The ABR Video Streaming System utilizes a closed-loop data flow spanning from Se
 ## Algorithm Overview
 
 ### 1. Objective Function: Optimizing User Experience
+![QoE Objective Function Diagram](./qoe_diagram.png)
 
 The algorithm seeks to maximize the Quality of Experience (QoE) defined by the following equation:
 
