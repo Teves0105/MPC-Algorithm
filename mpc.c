@@ -54,7 +54,7 @@ void mpc_DFS(int step, double current_buffer, int last_bitrate, double accumulat
     }
 }
 int main() {
-
+    printf("MPC Algorithm\n");
     double current_buffer = 0.0;
     int current_bitrate = AVAILABLE_BITRATES[0];
 
