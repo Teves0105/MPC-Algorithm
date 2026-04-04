@@ -1,5 +1,26 @@
 # MPC Algorithm for Adaptive Bitrate Streaming
 
+# Adaptive Video Streaming Player using MPC
+
+A high-performance DASH (Dynamic Adaptive Streaming over HTTP) player implemented in **C**. It utilizes **Model Predictive Control (MPC)** with a **Depth-First Search (DFS)** algorithm to optimize Quality of Experience (QoE).
+
+## Key Features
+- **Adaptive Bitrate (ABR)**: Dynamically switches between 480p and 1080p based on network conditions.
+- **MPC Optimization**: Balances video quality, buffering stalls, and smoothness.
+- **Real-time Monitoring**: Uses `libcurl` for passive bandwidth estimation.
+- **Playback**: Integrated with `ffplay` for seamless segment transition.
+
+## Technology Stack
+- **Language**: C
+- **Libraries**: libcurl (Networking), FFmpeg/ffplay (Multimedia)
+- **Tools**: Python (Local HTTP Server for simulation)
+
+## How to Run
+1. Encode video segments using FFmpeg.
+2. Start the local server: `python -m http.server 8000`.
+3. Compile: `gcc mpc.c -o dash_player -lcurl`.
+4. Run: `./dash_player.exe`.
+5. 
 ## Description
 
 This project implements a Model Predictive Control (MPC) algorithm for adaptive bitrate (ABR) selection in video streaming. When a video is stored on a server, it is not transmitted entirely all at once. It is divided into many short pieces called **Segments** (e.g., 2 or 4 seconds long). Each segment is encoded and stored at multiple quality levels and resolutions. The task of this client-side ABR algorithm is to decide at which bitrate to download the *i*-th segment before the download begins.
